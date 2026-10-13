@@ -206,9 +206,8 @@ compatible with the Transformers-derived code it vendors.
 
 ```bibtex
 @article{lofi,
-  title   = {LoFi: calibration-free KV cache compression via low-frequency RoPE channels},
-  author  = {TODO},
-  journal = {TODO},
-  year    = {2026}
+  title  = {LoFi: calibration-free KV cache compression via low-frequency RoPE channels},
+  author = {Anonymous},
+  year   = {2026}
 }
 ```

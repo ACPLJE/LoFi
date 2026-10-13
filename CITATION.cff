@@ -11,12 +11,10 @@ abstract: >-
 license: Apache-2.0
 type: software
 authors:
-  # TODO: replace with the author list before release.
-  - name: "The LoFi Authors"
+  - name: "Anonymous"
 preferred-citation:
   type: article
-  # TODO: fill in authors, venue, year and DOI once the paper is public.
   title: "LoFi: calibration-free KV cache compression via low-frequency RoPE channels"
   authors:
-    - name: "The LoFi Authors"
+    - name: "Anonymous"
   year: 2026
