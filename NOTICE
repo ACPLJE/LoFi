@@ -1,0 +1,51 @@
+LoFi
+Copyright 2026 The LoFi Authors
+
+This product includes software developed by third parties, listed below.
+Each file retains its original license header.
+
+--------------------------------------------------------------------------------
+third_party/transformers_v433/modeling_llama.py
+
+  Modified from the LLaMA implementation in HuggingFace Transformers v4.33
+  (transformers/models/llama/modeling_llama.py), as vendored by D2O
+  (https://github.com/AIoT-MLSys-Lab/d2o).
+
+  Copyright 2022 EleutherAI and the HuggingFace Inc. team.
+  Licensed under the Apache License, Version 2.0.
+
+  Vendored rather than imported because the attention patch in
+  lofi/models/llama.py depends on this version's eager attention signature and
+  tuple-style past_key_values.
+
+--------------------------------------------------------------------------------
+eval/longbench_metrics.py
+
+  Modified from LongBench (LongBench/metrics.py),
+  https://github.com/THUDM/LongBench.
+  Copyright THUDM. Licensed under the MIT License.
+
+  Scoring code is unchanged so that results stay comparable with numbers
+  reported using the official scorer.
+
+--------------------------------------------------------------------------------
+eval/score_longbench.py
+
+  Modified from LongBench (LongBench/eval.py),
+  https://github.com/THUDM/LongBench.
+  Copyright THUDM. Licensed under the MIT License.
+
+  The metric functions are unchanged; paths are command-line arguments rather
+  than a fixed directory layout.
+
+--------------------------------------------------------------------------------
+configs/dataset2prompt.json, configs/dataset2maxlen.json
+
+  Task prompt templates and generation lengths from LongBench,
+  https://github.com/THUDM/LongBench. Copyright THUDM. MIT License.
+  Used verbatim; changing them would make scores incomparable.
+
+--------------------------------------------------------------------------------
+The evaluation harness structure (prompt formatting, middle truncation, greedy
+decoding, per-task JSONL output) follows the D2O reference pipeline,
+https://github.com/AIoT-MLSys-Lab/d2o, Apache License 2.0.

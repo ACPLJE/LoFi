@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env*/
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Experiment outputs: predictions, scores, timings, logs
+pred/
+pred_*/
+results/
+results_*/
+outputs/
+*.jsonl
+scores.json
+retention_audit*.json
+efficiency*.json
+*.log
+
+# Figures and checkpoints
+figures/
+*.pdf
+*.png
+*.svg
+*.pt
+*.bin
+*.safetensors
+*.ckpt
+
+# Model and dataset caches
+.hf_cache/
+hf_cache/
+data/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store

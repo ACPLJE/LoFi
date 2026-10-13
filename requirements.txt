@@ -1,0 +1,18 @@
+# Pinned to the versions this code is tested against
+# (Python 3.12, CUDA 11.8, single GPU, fp16, batch size 1).
+torch==2.7.1
+transformers==4.57.6
+numpy==2.4.1
+datasets==2.21.0
+tqdm==4.67.1
+
+# LongBench metrics
+rouge==1.0.1
+fuzzywuzzy==0.18.0
+jieba==0.42.1
+# Optional, silences fuzzywuzzy's pure-python fallback warning and speeds up
+# the classification/code-similarity metrics.
+python-Levenshtein==0.27.1
+
+# Tests
+pytest==8.4.1

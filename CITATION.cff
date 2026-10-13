@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the paper below."
+title: "LoFi: calibration-free KV cache compression via low-frequency RoPE channels"
+abstract: >-
+  LoFi separates position-invariant low-frequency RoPE channels from
+  position-dependent high-frequency channels at the sqrt(base) boundary, uses
+  the low-frequency channels to select token pairs for merging, and applies a
+  mass-corrected content-preserving merge so that a surviving cache slot keeps
+  both the content and the attention mass of the tokens folded into it. No
+  calibration data is required.
+license: Apache-2.0
+type: software
+authors:
+  # TODO: replace with the author list before release.
+  - name: "The LoFi Authors"
+preferred-citation:
+  type: article
+  # TODO: fill in authors, venue, year and DOI once the paper is public.
+  title: "LoFi: calibration-free KV cache compression via low-frequency RoPE channels"
+  authors:
+    - name: "The LoFi Authors"
+  year: 2026
