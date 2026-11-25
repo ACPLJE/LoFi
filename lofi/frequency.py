@@ -1,70 +1,87 @@
-"""RoPE frequency partition at the sqrt(base) boundary.
+"""RoPE frequency structure used by LoFi (paper Section 3 and Section 4.2).
 
-Splits a head's channels into a position-invariant low-frequency set and a
-position-dependent high-frequency set. The boundary is derived from the RoPE
-base alone, so it needs no calibration data and no per-model tuning.
+* Definition 1: the low-frequency set L holds the channel pairs whose effective
+  range ``pi / (2 * theta_i)`` exceeds ``sqrt(base)``.
+* Eq. (4): the recent window ``W = min(floor(sqrt(base)), floor((B - n_s) / 2))``.
+
+Everything here follows from ``(base, d)`` alone. No data is involved.
 """
 
 from __future__ import annotations
 
 import math
+from typing import Optional, Tuple
 
 import torch
 
-# Channel index sets are reused on every layer and every forward pass, so they
-# are cached per (head_dim, rope_base, device) rather than rebuilt each call.
-_LOW_FREQ_CACHE: dict[tuple[int, float, str], torch.Tensor] = {}
-_HIGH_FREQ_CACHE: dict[tuple[int, float, str], torch.Tensor] = {}
+
+def rope_thetas(base: float, head_dim: int) -> torch.Tensor:
+    """``theta_i = base^(-2i/d)`` for pair ``i`` in ``[0, d/2)`` (float64)."""
+    i = torch.arange(head_dim // 2, dtype=torch.float64)
+    return float(base) ** (-2.0 * i / head_dim)
 
 
-def low_freq_indices(head_dim: int, rope_base: float, device: torch.device) -> torch.Tensor:
-    """Channel indices whose RoPE rotation is position-invariant over the cache.
+def effective_ranges(base: float, head_dim: int) -> torch.Tensor:
+    """``Delta*_i = pi / (2 * theta_i)``: distance at which pair ``i`` has turned a quarter."""
+    return (math.pi / 2.0) / rope_thetas(base, head_dim)
 
-    A channel pair with frequency theta_i = base^(-2i/d) rotates by
-    Delta * theta_i over a token distance Delta. Pairs stay within a quarter
-    turn (and so keep cos(Delta * theta_i) ~ 1) while Delta * theta_i <= pi/2.
-    Taking Delta ~ sqrt(base) as the reference distance gives the pair cutoff
-    `kb` below; every pair above it is treated as low-frequency content.
 
-    Returns:
-        1-D long tensor of channel indices into the last axis of a
-        (..., head_dim) tensor. Under the HF rotate_half layout a pair `i`
-        occupies channels (i, i + head_dim // 2), so the returned set is the
-        union of two contiguous blocks, sorted ascending.
+def low_frequency_pairs(base: float, head_dim: int) -> torch.Tensor:
+    """Definition 1: indices ``i`` of the channel pairs with ``Delta*_i > sqrt(base)``."""
+    ranges = effective_ranges(base, head_dim)
+    return torch.nonzero(ranges > math.sqrt(float(base)), as_tuple=False).squeeze(-1)
+
+
+def pair_to_channels(pairs: torch.Tensor, head_dim: int) -> torch.Tensor:
+    """Flat channel indices of the given pairs.
+
+    Hugging Face models apply RoPE with the ``rotate_half`` layout, in which
+    pair ``i`` occupies channels ``(i, i + d/2)``.
     """
-    key = (head_dim, rope_base, str(device))
-    cached = _LOW_FREQ_CACHE.get(key)
-    if cached is not None:
-        return cached
-
     half = head_dim // 2
-    ref_dist = rope_base**0.5
-    if ref_dist <= math.pi / 2:
-        kb = 0
-    else:
-        kb = math.ceil(half * math.log(2.0 * ref_dist / math.pi) / math.log(rope_base))
-    kb = max(0, min(kb, half - 1))
-    n_low = max(1, half - kb)
-
-    idx = sorted(list(range(half - n_low, half)) + list(range(head_dim - n_low, head_dim)))
-    out = torch.tensor(idx, dtype=torch.long, device=device)
-    _LOW_FREQ_CACHE[key] = out
-    return out
+    return torch.sort(torch.cat([pairs, pairs + half])).values
 
 
-def high_freq_indices(head_dim: int, rope_base: float, device: torch.device) -> torch.Tensor:
-    """Complement of :func:`low_freq_indices`: the position-dependent channels.
+def low_high_channels(
+    base: float, head_dim: int, device: Optional[torch.device] = None
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Channel indices of L and of its complement H, both sorted ascending."""
+    low = pair_to_channels(low_frequency_pairs(base, head_dim), head_dim)
+    mask = torch.ones(head_dim, dtype=torch.bool)
+    mask[low] = False
+    high = torch.nonzero(mask, as_tuple=False).squeeze(-1)
+    if device is not None:
+        low, high = low.to(device), high.to(device)
+    return low, high
+
+
+def recent_window(base: float, budget: int, n_sink: int) -> int:
+    """Eq. (4): ``W = min(floor(sqrt(base)), floor((B - n_s) / 2))``."""
+    return max(0, min(int(math.floor(math.sqrt(float(base)))), (int(budget) - int(n_sink)) // 2))
+
+
+def default_inv_freq(base: float, head_dim: int) -> torch.Tensor:
+    """Inverse frequencies of unscaled RoPE, ``base^(-2i/d)``."""
+    return rope_thetas(base, head_dim)
+
+
+def derotate(keys: torch.Tensor, positions: torch.Tensor, inv_freq: torch.Tensor) -> torch.Tensor:
+    """Undo the RoPE rotation of cached keys (used only by the ``derotated`` control).
+
+    Args:
+        keys: ``(..., n, d)`` cached keys, ``rotate_half`` layout.
+        positions: ``(n,)`` absolute positions of the keys.
+        inv_freq: ``(d/2,)`` inverse frequencies the model applies. Pass the
+            model's own values when its RoPE is rescaled (e.g. Llama-3.1).
 
     Returns:
-        1-D long tensor of channel indices, sorted ascending.
+        Keys rotated back to position 0, same shape, float32.
     """
-    key = (head_dim, rope_base, str(device))
-    cached = _HIGH_FREQ_CACHE.get(key)
-    if cached is not None:
-        return cached
-
-    low = set(low_freq_indices(head_dim, rope_base, device).tolist())
-    high = sorted(set(range(head_dim)) - low)
-    out = torch.tensor(high, dtype=torch.long, device=device)
-    _HIGH_FREQ_CACHE[key] = out
-    return out
+    k = keys.float()
+    angles = positions.to(k.device).double()[:, None] * inv_freq.to(k.device).double()[None, :]
+    cos = torch.cat([angles.cos(), angles.cos()], dim=-1).float()
+    sin = torch.cat([angles.sin(), angles.sin()], dim=-1).float()
+    half = k.shape[-1] // 2
+    rot_half = torch.cat([-k[..., half:], k[..., :half]], dim=-1)
+    # forward rotation is k*cos + rotate_half(k)*sin, so the inverse flips the sign of sin
+    return k * cos - rot_half * sin
