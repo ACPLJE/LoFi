@@ -22,7 +22,7 @@ from .frequency import (
 )
 from .selection import SelectionOutput, select
 
-__version__ = "1.1.0"
+__version__ = "1.0.0"
 
 __all__ = [
     "CompressionStats",

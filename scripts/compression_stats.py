@@ -1,25 +1,4 @@
-"""Window, kept share, pair share and number of passes of LoFi on a set of prompts.
-
-For every prompt the context is prefilled once and compressed under each
-setting of ``--max-passes``. The script prints, per setting, the quantities
-that describe how the selection ran:
-
-    W          recent window of Eq. (4)
-    W/B        its share of the budget
-    kept (%)   share of the distant region D that is kept
-    pair (%)   share of the removals made by the pair rule rather than by the
-               fallback of line 13 of Algorithm 1
-    passes     passes of Algorithm 1 over all layers and KV heads (mean / max)
-
-Examples:
-
-    # contexts from a JSON-lines file (one object per line, text in the field "context")
-    python scripts/compression_stats.py --model Qwen/Qwen2-7B-Instruct \
-        --data narrativeqa.jsonl --field context --max-tokens 7500 --limit 50
-
-    # compare the uncapped loop with caps of 8 and 10 passes
-    python scripts/compression_stats.py --model ... --data ... --max-passes none 8 10
-"""
+"""Window, kept share, pair share and number of passes of LoFi on a set of prompts."""
 
 from __future__ import annotations
 
@@ -32,7 +11,7 @@ import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from lofi import LoFiConfig, compress, disable_sliding_window, layout, prefill, rope_base  # noqa: E402
+from lofi import LoFiConfig, compress, disable_sliding_window, layout, prefill, rope_base
 
 
 def read_texts(args) -> list:
@@ -93,7 +72,7 @@ def main() -> None:
         try:
             layout(ids.shape[1], LoFiConfig(budget=args.budget), base)
         except ValueError:
-            skipped += 1                    # too short for this budget
+            skipped += 1
             continue
         pre = prefill(model, ids.to(device))
         for cap in caps:

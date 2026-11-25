@@ -1,11 +1,4 @@
-"""RoPE frequency structure used by LoFi (paper Section 3 and Section 4.2).
-
-* Definition 1: the low-frequency set L holds the channel pairs whose effective
-  range ``pi / (2 * theta_i)`` exceeds ``sqrt(base)``.
-* Eq. (4): the recent window ``W = min(floor(sqrt(base)), floor((B - n_s) / 2))``.
-
-Everything here follows from ``(base, d)`` alone. No data is involved.
-"""
+"""RoPE frequency structure used by LoFi (paper Section 3 and Section 4.2)."""
 
 from __future__ import annotations
 
@@ -33,11 +26,7 @@ def low_frequency_pairs(base: float, head_dim: int) -> torch.Tensor:
 
 
 def pair_to_channels(pairs: torch.Tensor, head_dim: int) -> torch.Tensor:
-    """Flat channel indices of the given pairs.
-
-    Hugging Face models apply RoPE with the ``rotate_half`` layout, in which
-    pair ``i`` occupies channels ``(i, i + d/2)``.
-    """
+    """Flat channel indices of the given pairs."""
     half = head_dim // 2
     return torch.sort(torch.cat([pairs, pairs + half])).values
 
@@ -66,22 +55,11 @@ def default_inv_freq(base: float, head_dim: int) -> torch.Tensor:
 
 
 def derotate(keys: torch.Tensor, positions: torch.Tensor, inv_freq: torch.Tensor) -> torch.Tensor:
-    """Undo the RoPE rotation of cached keys (used only by the ``derotated`` control).
-
-    Args:
-        keys: ``(..., n, d)`` cached keys, ``rotate_half`` layout.
-        positions: ``(n,)`` absolute positions of the keys.
-        inv_freq: ``(d/2,)`` inverse frequencies the model applies. Pass the
-            model's own values when its RoPE is rescaled (e.g. Llama-3.1).
-
-    Returns:
-        Keys rotated back to position 0, same shape, float32.
-    """
+    """Undo the RoPE rotation of cached keys (used only by the ``derotated`` control)."""
     k = keys.float()
     angles = positions.to(k.device).double()[:, None] * inv_freq.to(k.device).double()[None, :]
     cos = torch.cat([angles.cos(), angles.cos()], dim=-1).float()
     sin = torch.cat([angles.sin(), angles.sin()], dim=-1).float()
     half = k.shape[-1] // 2
     rot_half = torch.cat([-k[..., half:], k[..., :half]], dim=-1)
-    # forward rotation is k*cos + rotate_half(k)*sin, so the inverse flips the sign of sin
     return k * cos - rot_half * sin

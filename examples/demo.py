@@ -1,14 +1,4 @@
-"""Run LoFi on one context and one question, and print what was kept and what was generated.
-
-    python examples/demo.py --model Qwen/Qwen2-7B-Instruct \
-        --context-file my_document.txt --question "Who signed the contract?" \
-        --setting agnostic --budget 0.2 --compare-full
-
-``--setting agnostic`` compresses the cache of the context before the question
-is seen and then prefills the question on the compressed cache.
-``--setting aware`` prefills context and question together and compresses
-afterwards.
-"""
+"""Run LoFi on one context and one question, and print what was kept and what was generated."""
 
 from __future__ import annotations
 
@@ -22,7 +12,7 @@ import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from lofi import LoFiConfig, disable_sliding_window, generate  # noqa: E402
+from lofi import LoFiConfig, disable_sliding_window, generate
 
 INSTRUCTION = "\n\nAnswer the question based on the text above. Give only the answer.\nQuestion: "
 
@@ -36,7 +26,7 @@ def split_prompt(tokenizer, context: str, question: str, use_template: bool):
             [{"role": "user", "content": context + tail}], tokenize=False, add_generation_prompt=True
         )
         cut = text.index(context) + len(context)
-        head, tail, special = text[:cut], text[cut:], False      # the template adds its own special tokens
+        head, tail, special = text[:cut], text[cut:], False
     else:
         head, tail, special = context, tail + "\nAnswer:", True
     context_ids = tokenizer(head, add_special_tokens=special, return_tensors="pt").input_ids
